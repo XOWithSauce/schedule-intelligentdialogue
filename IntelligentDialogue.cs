@@ -198,7 +198,7 @@ namespace IntelligentDialogue
                 }
                 catch (Exception ex)
                 {
-                    MelonLogger.Error($"[OfficerAction4] Error while starting pursuit: {ex.Message}");
+                    //MelonLogger.Error($"[OfficerAction4] Error while starting pursuit: {ex.Message}");
                 }
             }
         }
@@ -310,7 +310,6 @@ namespace IntelligentDialogue
             if (match.Groups.Count != 3) { return false;} // include full string + speech + action
             string speech = match.Groups["speech"].Value.Trim();
             string action = match.Groups["action"].Value.Trim();
-            Debug.Log($"Intelligent Dialogue: Speech: {speech}, Action: {action}");
             if (!Regex.IsMatch(speech, @"^[a-zA-Z0-9\s\.\!\?\:\;\,\'\']+$")) { return false; } // speech alphanumericals dots ! and ?
             if (!Regex.IsMatch(action, @"^Action[1-5]$")) { return false; } // Action with int 1-5
             return true;
@@ -327,6 +326,10 @@ namespace IntelligentDialogue
             }
             else
             {
+                if (LoadManager.Instance != null && registered)
+                {
+                    LoadManager.Instance.onLoadComplete.RemoveListener(OnLoadCompleteCb);
+                }
                 registered = false;
             }
         }
