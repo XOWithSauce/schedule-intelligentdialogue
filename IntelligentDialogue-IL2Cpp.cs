@@ -2,19 +2,21 @@ using MelonLoader;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
-using TMPro;
-using Newtonsoft.Json.Linq;
-using ScheduleOne.Persistence;
+using Il2CppTMPro;
+using Il2CppScheduleOne.Persistence;
 using UnityEngine.UI;
 using System.Text.RegularExpressions;
 using HarmonyLib;
-using ScheduleOne.PlayerScripts;
-using ScheduleOne.Dialogue;
-using ScheduleOne.NPCs;
-using ScheduleOne.Police;
-using ScheduleOne.Employees;
-using ScheduleOne.Economy;
-using ScheduleOne.VoiceOver;
+using Il2CppScheduleOne.PlayerScripts;
+using Il2CppScheduleOne.Dialogue;
+using Il2CppScheduleOne.NPCs;
+using Il2CppScheduleOne.Police;
+using Il2CppScheduleOne.Employees;
+using Il2CppScheduleOne.Economy;
+using Il2CppScheduleOne.VoiceOver;
+using Il2CppScheduleOne.Law;
+using Newtonsoft.Json.Linq;
+using Il2CppInterop.Runtime.Injection;
 
 [assembly: MelonInfo(typeof(IntelligentDialogue.IntelligentDialogue), IntelligentDialogue.BuildInfo.Name, IntelligentDialogue.BuildInfo.Version, IntelligentDialogue.BuildInfo.Author, IntelligentDialogue.BuildInfo.DownloadLink)]
 [assembly: MelonColor()]
@@ -323,14 +325,14 @@ namespace IntelligentDialogue
             {
                 if (LoadManager.Instance != null && !registered)
                 {
-                    LoadManager.Instance.onLoadComplete.AddListener(OnLoadCompleteCb);
+                    LoadManager.Instance.onLoadComplete.AddListener((UnityEngine.Events.UnityAction)OnLoadCompleteCb);
                 }
             }
             else
             {
                 if (LoadManager.Instance != null && registered)
                 {
-                    LoadManager.Instance.onLoadComplete.RemoveListener(OnLoadCompleteCb);
+                    LoadManager.Instance.onLoadComplete.RemoveListener((UnityEngine.Events.UnityAction)OnLoadCompleteCb);
                 }
                 registered = false;
             }
@@ -351,30 +353,30 @@ namespace IntelligentDialogue
 
 
         // Patch: InitializeDialogue(DialogueContainer)
-        [HarmonyPatch(typeof(ScheduleOne.Dialogue.DialogueHandler), "InitializeDialogue", new Type[] { typeof(ScheduleOne.Dialogue.DialogueContainer) })]
+        [HarmonyPatch(typeof(Il2CppScheduleOne.Dialogue.DialogueHandler), "InitializeDialogue", new Type[] { typeof(Il2CppScheduleOne.Dialogue.DialogueContainer) })]
         public static class Patch_InitDialogue_Container
         {
-            public static bool Prefix(ScheduleOne.Dialogue.DialogueHandler __instance, ScheduleOne.Dialogue.DialogueContainer container)
+            public static bool Prefix(Il2CppScheduleOne.Dialogue.DialogueHandler __instance, Il2CppScheduleOne.Dialogue.DialogueContainer container)
             {
                 return HandleDialogueInit(__instance);
             }
         }
 
         // Patch: InitializeDialogue(DialogueContainer, bool, string)
-        [HarmonyPatch(typeof(ScheduleOne.Dialogue.DialogueHandler), "InitializeDialogue", new Type[] { typeof(ScheduleOne.Dialogue.DialogueContainer), typeof(bool), typeof(string) })]
+        [HarmonyPatch(typeof(Il2CppScheduleOne.Dialogue.DialogueHandler), "InitializeDialogue", new Type[] { typeof(Il2CppScheduleOne.Dialogue.DialogueContainer), typeof(bool), typeof(string) })]
         public static class Patch_InitDialogue_ContainerBoolString
         {
-            public static bool Prefix(ScheduleOne.Dialogue.DialogueHandler __instance, ScheduleOne.Dialogue.DialogueContainer dialogueContainer, bool enableDialogueBehaviour = true, string entryNodeLabel = "ENTRY")
+            public static bool Prefix(Il2CppScheduleOne.Dialogue.DialogueHandler __instance, Il2CppScheduleOne.Dialogue.DialogueContainer dialogueContainer, bool enableDialogueBehaviour = true, string entryNodeLabel = "ENTRY")
             {
                 return HandleDialogueInit(__instance);
             }
         }
 
         // Patch: InitializeDialogue(string, bool, string)
-        [HarmonyPatch(typeof(ScheduleOne.Dialogue.DialogueHandler), "InitializeDialogue", new Type[] { typeof(string), typeof(bool), typeof(string) })]
+        [HarmonyPatch(typeof(Il2CppScheduleOne.Dialogue.DialogueHandler), "InitializeDialogue", new Type[] { typeof(string), typeof(bool), typeof(string) })]
         public static class Patch_InitDialogue_StringBoolString
         {
-            public static bool Prefix(ScheduleOne.Dialogue.DialogueHandler __instance, string dialogueContainerName, bool enableDialogueBehaviour = true, string entryNodeLabel = "ENTRY")
+            public static bool Prefix(Il2CppScheduleOne.Dialogue.DialogueHandler __instance, string dialogueContainerName, bool enableDialogueBehaviour = true, string entryNodeLabel = "ENTRY")
             {
                 return HandleDialogueInit(__instance);
             }
@@ -415,9 +417,9 @@ namespace IntelligentDialogue
                 if (p.CrimeData.Crimes.Count > 0)
                 {
                     IntelligentDialogue.conversantAdditional = "Your dialogue conversant is a known criminal and has following crimes on record: ";
-                    for (int i = 0; i < p.CrimeData.Crimes.Count; i++)
+                    foreach (Il2CppSystem.Collections.Generic.KeyValuePair<Crime, int> c in p.CrimeData.Crimes)
                     {
-                        IntelligentDialogue.conversantAdditional += $" {p.CrimeData.Crimes.ElementAt(i).Key.CrimeName}";
+                        IntelligentDialogue.conversantAdditional += $" {c.key.CrimeName}";
                     }
                     IntelligentDialogue.conversantAdditional += ". ";
 
@@ -460,7 +462,7 @@ namespace IntelligentDialogue
             return true;
         }
 
-        [HarmonyPatch(typeof(ScheduleOne.Dialogue.DialogueHandler), "EndDialogue")]
+        [HarmonyPatch(typeof(Il2CppScheduleOne.Dialogue.DialogueHandler), "EndDialogue")]
         public static class Diag_EndDiag_Patch
         {
             public static bool Prefix(DialogueHandler __instance)
@@ -494,16 +496,16 @@ namespace IntelligentDialogue
         }
         private void CreateGeminiUI()
         {
-            GameObject inputGO = new GameObject("UserInputField", typeof(RectTransform));
+            GameObject inputGO = new GameObject("UserInputField");
             inputGO.transform.SetParent(_dialogueCanvas.transform, false);
             inputGO.transform.SetAsLastSibling();
-            RectTransform rt = inputGO.GetComponent<RectTransform>();
+            RectTransform rt = inputGO.AddComponent<RectTransform>();
             rt.anchorMin = new Vector2(0.5f, 0.5f);
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(500, 100);
             rt.anchoredPosition = new Vector2(0f, 350f);
-            Image bg = inputGO.AddComponent<Image>();
+            UnityEngine.UI.Image bg = inputGO.AddComponent<UnityEngine.UI.Image>();
             bg.color = new Color(1, 1, 1, 0.8f);
             _userInputField = inputGO.AddComponent<TMP_InputField>();
             _userInputField.textViewport = CreateTextArea(inputGO.transform, out TextMeshProUGUI textComponent, Color.black);
@@ -512,13 +514,13 @@ namespace IntelligentDialogue
             _userInputField.characterLimit = 200;
             _userInputField.lineType = TMP_InputField.LineType.MultiLineNewline;
             _userInputField.contentType = TMP_InputField.ContentType.Standard;
-            _userInputField.onValueChanged.AddListener((text) => _userInput = text);
+            _userInputField.onValueChanged.AddListener((UnityEngine.Events.UnityAction<string>)OnPlayerInputChange);
             _userInputField.interactable = false;
 
-            GameObject outputGo = new GameObject("ResponseField", typeof(RectTransform));
+            GameObject outputGo = new GameObject("ResponseField");
             outputGo.transform.SetParent(_dialogueCanvas.transform, false);
             outputGo.transform.SetAsLastSibling();
-            RectTransform rtr = outputGo.GetComponent<RectTransform>();
+            RectTransform rtr = outputGo.AddComponent<RectTransform>();
             rtr.anchorMin = new Vector2(0.5f, 0.5f);
             rtr.anchorMax = new Vector2(0.5f, 0.5f);
             rtr.pivot = new Vector2(0.5f, 0.5f);
@@ -538,10 +540,10 @@ namespace IntelligentDialogue
             _responseTextField.readOnly = true;
             _responseTextField.interactable = false;
 
-            GameObject keyField = new GameObject("InputKeyField", typeof(RectTransform));
+            GameObject keyField = new GameObject("InputKeyField");
             keyField.transform.SetParent(_dialogueCanvas.transform, false);
             keyField.transform.SetAsLastSibling();
-            RectTransform rti = keyField.GetComponent<RectTransform>();
+            RectTransform rti = keyField.AddComponent<RectTransform>();
             rti.anchorMin = new Vector2(0.5f, 0.5f);
             rti.anchorMax = new Vector2(0.5f, 0.5f);
             rti.pivot = new Vector2(0.5f, 0.5f);
@@ -557,15 +559,23 @@ namespace IntelligentDialogue
             _apiKeyInputField.placeholder = CreatePlaceholder(keyField.transform, "Insert API Key");
             _apiKeyInputField.lineType = TMP_InputField.LineType.SingleLine;
             _apiKeyInputField.contentType = TMP_InputField.ContentType.Password;
-            _apiKeyInputField.onValueChanged.AddListener((text) => _geminiApiKey = text);
+            _apiKeyInputField.onValueChanged.AddListener((UnityEngine.Events.UnityAction<string>)OnApiKeyInputChange);
             _apiKeyInputField.interactable = false;
+        }
+        private void OnPlayerInputChange(string input)
+        {
+            _userInput = input;
+        }
+        private void OnApiKeyInputChange(string input)
+        {
+            _geminiApiKey = input;
         }
 
         private RectTransform CreateTextArea(Transform parent, out TextMeshProUGUI textComp, Color color)
         {
-            GameObject textGO = new GameObject("Text", typeof(RectTransform));
+            GameObject textGO = new GameObject("Text");
             textGO.transform.SetParent(parent, false);
-            RectTransform rt = textGO.GetComponent<RectTransform>();
+            RectTransform rt = textGO.AddComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
             rt.offsetMin = new Vector2(10, 6);
@@ -580,9 +590,9 @@ namespace IntelligentDialogue
         }
         private Graphic CreatePlaceholder(Transform parent, string content)
         {
-            GameObject placeholderGO = new GameObject("Placeholder", typeof(RectTransform));
+            GameObject placeholderGO = new GameObject("Placeholder");
             placeholderGO.transform.SetParent(parent, false);
-            RectTransform rt = placeholderGO.GetComponent<RectTransform>();
+            RectTransform rt = placeholderGO.AddComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
             rt.offsetMin = new Vector2(10, 6);
@@ -666,14 +676,13 @@ namespace IntelligentDialogue
             Texture2D snapshot = snapshotCamera.TakeSnapshot(Color.clear, 1920, 1080);
 
             UnityEngine.Object.Destroy(snapshotCamera.gameObject);
-            
+
             byte[] imageBytes;
             string mimeType;
 
             //imageBytes = snapshot.EncodeToPNG();
             //mimeType = "image/png";
-
-            imageBytes = snapshot.EncodeToJPG(8);
+            imageBytes = UnityEngine.ImageConversion.EncodeToJPG(snapshot, 8);
             mimeType = "image/jpg";
 
             string base64Image = System.Convert.ToBase64String(imageBytes);
@@ -709,8 +718,11 @@ namespace IntelligentDialogue
               }}
             }}";
 
-            using (UnityWebRequest request = new UnityWebRequest(urlWithKey, UnityWebRequest.kHttpVerbPOST))
+
+            UnityWebRequest request = null;
+            try
             {
+                request = new UnityWebRequest(urlWithKey, UnityWebRequest.kHttpVerbPOST);
                 byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonPayload);
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
@@ -740,22 +752,30 @@ namespace IntelligentDialogue
                     }
                 }
             }
+            finally
+            {
+                request?.Dispose();
+            }
 
-            // Clean up the texture
             UnityEngine.Object.Destroy(snapshot);
         }
 
         #region Image Utility 
+        [RegisterTypeInIl2Cpp]
         public class SnapshotCamera : MonoBehaviour
         {
+            public SnapshotCamera(IntPtr ptr) : base(ptr) { }
+
+            public SnapshotCamera() : base(ClassInjector.DerivedConstructorPointer<SnapshotCamera>())
+                => ClassInjector.DerivedConstructorBody(this);
+
             private Camera cam;
 
-            private SnapshotCamera() { }
             public static SnapshotCamera MakeSnapshotCamera(Transform tr, string name = "Snapshot Camera")
             {
                 GameObject snapshotCameraGO = new(name);
                 Camera cam = snapshotCameraGO.AddComponent<Camera>();
-                
+
                 // Configure the Camera
                 cam.orthographic = false;
                 cam.orthographicSize = 1;
@@ -769,7 +789,7 @@ namespace IntelligentDialogue
                 snapshotCameraGO.transform.localPosition = Vector3.zero + Vector3.forward * 1.02f;
                 snapshotCameraGO.transform.localPosition += Vector3.up * 1.78f;
                 Vector3 player = Player.GetClosestPlayer(snapshotCameraGO.transform.position, out float dist).transform.position;
-                snapshotCameraGO.transform.LookAt(player + Vector3.up*1.06f);
+                snapshotCameraGO.transform.LookAt(player + Vector3.up * 1.06f);
                 // Add a SnapshotCamera component to the GameObject
                 SnapshotCamera snapshotCamera = snapshotCameraGO.AddComponent<SnapshotCamera>();
                 snapshotCamera.cam = cam;
